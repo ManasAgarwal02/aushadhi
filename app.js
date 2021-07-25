@@ -81,7 +81,7 @@ app.post('/register', (req, res)=>{
           return res.render('register.ejs');
       }
       passport.authenticate('local')(req, res, ()=>{
-          res.redirect('/secret');
+          res.redirect('/');
       });
   });
 });
@@ -92,7 +92,7 @@ app.get('/login', (req, res)=>{
 });
 
 app.post('/login', passport.authenticate('local', {
-    successRedirect: '/secret',
+    successRedirect: '/',
     failureRedirect: '/login'
 }), (req, res)=>{
 
@@ -110,10 +110,6 @@ function isLoggedIn(req, res, next){
     }
     res.redirect('/login');
 }
-
-app.get('/secret', isLoggedIn,  (req, res)=>{
-    res.render('secret.ejs');
-});
 
 
 app.post('/admin/', (req, res)=>{
