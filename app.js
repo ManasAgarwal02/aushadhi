@@ -5,12 +5,11 @@ var bodyParser = require('body-parser');
 var Product = require('./models/product');
 var mongoose = require('mongoose');
 var session = require('express-session');
-var csrf = require('csurf');
 var passport = require('passport');
-var flash = require('connect-flash');
-const { session } = require('passport');
+var LocalStrategy = require('passport-local');
+var passportLocalMongoose = require('passport-local-mongoose');
+var User = require('./models/user');
 
-var csrfProtection = csrf();
 
 var cart = new Map();
 
@@ -20,6 +19,20 @@ mongoose.connect('mongodb://localhost/aushadhi', {
   useFindAndModify: false,
   useCreateIndex: true
 });
+
+app.use(session({
+    secret: 'keyboard cat',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 // Product.create({
 //     name: 'FabiFlu',
@@ -37,10 +50,7 @@ mongoose.connect('mongodb://localhost/aushadhi', {
 // });
 
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({secret: 'supersecret', resave: false, saveUnitialized:false}));
-app.use(flash());
-app.use(passport.initialize());
-app.use(passport.session());
+
 
 
 
@@ -54,13 +64,57 @@ app.get('/', (req, res)=>{
     });
 });
 
-app.get('/admin', (req, res)=>{
+app.get('/admin', isLoggedIn,  (req, res)=>{
     res.render('signin.ejs');
 });
 
-app.get('/user/signin',function(req,res){
-    res.render('signin',{csrfToken : req.csrfToken()});
+// ===============================================
+
+app.get('/register', (req, res)=>{
+    res.render('register.ejs');
 });
+
+app.post('/register', (req, res)=>{
+    User.register(new User({username: req.body.username}), req.body.password, (err, user)=>{
+      if(err){
+          console.log(err);
+          return res.render('register.ejs');
+      }
+      passport.authenticate('local')(req, res, ()=>{
+          res.redirect('/secret');
+      });
+  });
+});
+
+// ==================================================
+app.get('/login', (req, res)=>{
+    res.render('login.ejs');
+});
+
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/secret',
+    failureRedirect: '/login'
+}), (req, res)=>{
+
+});
+
+// ============================================================
+app.get('/logout', (req, res)=>{
+    req.logout();
+    res.redirect('/');
+});
+
+function isLoggedIn(req, res, next){
+    if(req.isAuthenticated()){
+        return next();
+    }
+    res.redirect('/login');
+}
+
+app.get('/secret', isLoggedIn,  (req, res)=>{
+    res.render('secret.ejs');
+});
+
 
 app.post('/admin/', (req, res)=>{
     var product = req.body.product;
@@ -108,7 +162,7 @@ app.get('/cart',async (req, res)=>{
     res.render('cart.ejs', {cart : allProducts});
 });
 
-app.post('/addToCart', (req, res)=>{
+app.post('/addToCart', isLoggedIn,  (req, res)=>{
     var item = req.body.itemId;
     if(!cart[item]){
         cart[item]=1;
