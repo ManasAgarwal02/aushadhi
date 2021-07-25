@@ -4,6 +4,13 @@ var request = require('request');
 var bodyParser = require('body-parser');
 var Product = require('./models/product');
 var mongoose = require('mongoose');
+var session = require('express-session');
+var csrf = require('csurf');
+var passport = require('passport');
+var flash = require('connect-flash');
+const { session } = require('passport');
+
+var csrfProtection = csrf();
 
 var cart = new Map();
 
@@ -30,6 +37,12 @@ mongoose.connect('mongodb://localhost/aushadhi', {
 // });
 
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(session({secret: 'supersecret', resave: false, saveUnitialized:false}));
+app.use(flash());
+app.use(passport.initialize());
+app.use(passport.session());
+
+
 
 app.get('/', (req, res)=>{
     Product.find({}, (err, products)=>{
@@ -42,7 +55,11 @@ app.get('/', (req, res)=>{
 });
 
 app.get('/admin', (req, res)=>{
-    res.render('admin.ejs');
+    res.render('signin.ejs');
+});
+
+app.get('/user/signin',function(req,res){
+    res.render('signin',{csrfToken : req.csrfToken()});
 });
 
 app.post('/admin/', (req, res)=>{
